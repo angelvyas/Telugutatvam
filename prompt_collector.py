@@ -2,27 +2,70 @@ import streamlit as st
 import geocoder
 from datetime import datetime
 import os
-import json
 import random
 import sqlite3
 
-# Define prompt categories
+# Define prompt categories with more options but no participant details needed
 prompt_categories = {
+    "People": [
+        "Describe an inspiring person you know.",
+        "Who is your role model and why?"
+    ],
+    "Events": [
+        "What was the most memorable event you attended?",
+        "Describe a festival unique to your culture."
+    ],
+    "Music": [
+        "What type of music do you enjoy the most?",
+        "Describe a song that moves you deeply."
+    ],
+    "Places": [
+        "What is your favorite place to visit?",
+        "Describe a place in your town that has historical significance."
+    ],
     "Food": [
         "What is your favorite dish? - మీకు ఇష్టమైన వంటకం ఏమిటి?",
         "Do you prefer spicy or sweet? - మీరు కారంగా ఇష్టపడతారా లేదా తీపిగా?",
+    ],
+    "Literature": [
+        "Who is your favorite author or poet?",
+        "What is a book that changed your perspective?"
+    ],
+    "Architecture": [
+        "Describe an architectural landmark you like.",
+        "What building style is common in your area?"
+    ],
+    "Skills": [
+        "What skill are you proud of?",
+        "What new skill would you like to learn?"
+    ],
+    "Images": [
+        "Describe a picture that you cherish.",
+        "What kind of images inspire you?"
     ],
     "Culture": [
         "What festival do you celebrate most? - మీరు ఎక్కువగా జరుపుకునే పండుగ ఏమిటి?",
         "Do you follow any traditions at home? - మీ ఇంట్లో ఏవైనా సంప్రదాయాలు పాటిస్తారా?",
     ],
-    "Travel": [
-        "Where did you go on your last trip? - మీరు గతంలో ఎక్కడికి ప్రయాణించారు?",
-        "Do you prefer beaches or hills? - మీరు బీచ్‌లను ఇష్టపడతారా లేక కొండలను?",
+    "Education": [
+        "What is your favorite subject in school?",
+        "Describe an inspiring teacher."
     ],
-    "Childhood": [
-        "What is your favorite childhood memory? - మీకు ఇష్టమైన చిన్ననాటి జ్ఞాపకం ఏమిటి?",
-        "Did you enjoy school? - మీకు పాఠశాల నచ్చిందా?",
+    "Vegetation": [
+        "What plants grow around your home?",
+        "Do you have a favorite tree or flower?"
+    ],
+    "Folk Tales": [
+        "Share a folk tale from your region.",
+        "What lessons do folk tales teach us?"
+    ],
+    "Local History": [
+        "What is an interesting fact about your town’s history?",
+        "Describe a historical event that shaped your community."
+    ],
+    "Newspapers Older Than 1980s": [
+        "Have you seen old newspapers? What stood out?",
+        "How did newspapers influence people in older times?"
     ]
 }
 
@@ -33,9 +76,6 @@ def init_db():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS responses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            email TEXT,
-            swecha_username TEXT,
             location TEXT,
             category TEXT,
             prompt TEXT,
@@ -53,13 +93,14 @@ def insert_response(data):
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO responses (
-            name, email, swecha_username, location,
-            category, prompt, mode, text_response, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            location,
+            category,
+            prompt,
+            mode,
+            text_response,
+            timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?)
     """, (
-        data["name"],
-        data["email"],
-        data["swecha_username"],
         data["location"],
         data["category"],
         data["prompt"],
@@ -72,25 +113,19 @@ def insert_response(data):
 
 # ---------- Main App ----------
 def run_prompt_collector():
-    st.title("🎙️ Swecha Summer of AI - Prompt Collector (ప్రాంప్ట్ ఆధారిత డేటా సేకరణ)")
+    st.title("🎙️ Choose a category to contribute content")
 
-    # Location
+    # Location detection
     try:
         location_info = geocoder.ip('me')
-        location = f"{location_info.city}, {location_info.country}" if location_info.ok else "Unavailable / అందుబాటులో లేదు"
+        location = f"{location_info.city}, {location_info.country}" if location_info.ok else "Unavailable"
     except:
-        location = "Unavailable / అందుబాటులో లేదు"
+        location = "Unavailable"
 
-    st.markdown(f"📍 **Your Location (మీ స్థానం):** `{location}`")
-
-    # User details
-    st.subheader("👤 Participant Details (పాల్గొనేవరి వివరాలు)")
-    user_name = st.text_input("Full Name (పూర్తి పేరు)")
-    user_email = st.text_input("Email Address (ఈమెయిల్)")
-    swecha_username = st.text_input("Swecha Username (స్వేచ్చ యూజర్నేమ్)")
+    st.markdown(f"📍 **Your Location:** `{location}`")
 
     # Prompt selection
-    st.subheader("📂 Select a Prompt Category")
+    st.subheader("📂 Select a Category")
     selected_category = st.selectbox("Choose a category", list(prompt_categories.keys()))
     if 'prompt_index' not in st.session_state:
         st.session_state.prompt_index = 0
@@ -105,27 +140,24 @@ def run_prompt_collector():
         st.rerun()
 
     # Submission Mode
-    st.subheader("🔴 Recording/Typing (రికార్డింగ్ లేదా టైపింగ్)")
-    mode = st.radio("Submission Mode (సమర్పణ రకం)", ["Audio", "Video", "Text"])
+    st.subheader("🔴 Recording/Typing")
+    mode = st.radio("Submission Mode", ["Audio", "Video", "Text"])
 
     text_response = ""
     uploaded_file = None
 
     if mode == "Text":
-        text_response = st.text_area("Write your response here (ఇక్కడ మీ స్పందనను రాయండి)")
+        text_response = st.text_area("Write your response here")
     else:
         uploaded_file = st.file_uploader(f"Upload your {mode.lower()} file here", type=["mp3", "wav", "m4a", "mp4", "webm", "mkv"])
 
-    if st.button("✅ Submit (సమర్పించండి)"):
-        if not user_name or not user_email or not swecha_username:
-            st.error("Please fill all fields. / దయచేసి అన్ని వివరాలను పూరించండి.")
-        elif mode in ["Audio", "Video"] and not uploaded_file:
-            st.error("Please upload your file. / దయచేసి మీ ఫైల్‌ను అప్‌లోడ్ చేయండి.")
+    if st.button("✅ Submit"):
+        if mode in ["Audio", "Video"] and not uploaded_file:
+            st.error("Please upload your file.")
+        elif mode == "Text" and not text_response.strip():
+            st.error("Please write your response.")
         else:
             submission = {
-                "name": user_name,
-                "email": user_email,
-                "swecha_username": swecha_username,
                 "location": location,
                 "prompt": prompt,
                 "category": selected_category,
@@ -134,9 +166,9 @@ def run_prompt_collector():
                 "text_response": ""
             }
 
-            # Save file if applicable
+            # Save uploaded file if any
             if uploaded_file:
-                user_dir = os.path.join("user_uploads", swecha_username)
+                user_dir = os.path.join("user_uploads")
                 os.makedirs(user_dir, exist_ok=True)
 
                 file_ext = uploaded_file.name.split('.')[-1]
