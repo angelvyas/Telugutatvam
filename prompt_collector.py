@@ -5,7 +5,7 @@ import os
 import random
 import sqlite3
 
-# Define prompt categories with more options but no participant details needed
+# ======== Prompt Categories & Questions ========
 prompt_categories = {
     "People": [
         "Describe an inspiring person you know.",
@@ -25,11 +25,15 @@ prompt_categories = {
     ],
     "Food": [
         "What is your favorite dish? - మీకు ఇష్టమైన వంటకం ఏమిటి?",
-        "Do you prefer spicy or sweet? - మీరు కారంగా ఇష్టపడతారా లేదా తీపిగా?",
+        "Do you prefer spicy or sweet? - మీరు కారంగా ఇష్టపడతారా లేదా తీపిగా?"
+    ],
+    "People": [
+        "Describe a person who made a difference in your life.",
+        "Who inspires you and why?"
     ],
     "Literature": [
         "Who is your favorite author or poet?",
-        "What is a book that changed your perspective?"
+        "What book changed your perspective?"
     ],
     "Architecture": [
         "Describe an architectural landmark you like.",
@@ -45,7 +49,11 @@ prompt_categories = {
     ],
     "Culture": [
         "What festival do you celebrate most? - మీరు ఎక్కువగా జరుపుకునే పండుగ ఏమిటి?",
-        "Do you follow any traditions at home? - మీ ఇంట్లో ఏవైనా సంప్రదాయాలు పాటిస్తారా?",
+        "Do you follow any traditions at home? - మీ ఇంట్లో ఏవైనా సంప్రదాయాలు పాటిస్తారా?"
+    ],
+    "Flora & Fauna": [
+        "What plants or animals are common around your home?",
+        "Do you have a favorite tree, flower, or animal?"
     ],
     "Education": [
         "What is your favorite subject in school?",
@@ -59,9 +67,25 @@ prompt_categories = {
         "Share a folk tale from your region.",
         "What lessons do folk tales teach us?"
     ],
+    "Folk Songs": [
+        "Share a folk song from your culture.",
+        "Do you know the meaning of any folk songs?"
+    ],
+    "Traditional Skills": [
+        "What traditional skill do you know?",
+        "Describe a traditional craft or art from your region."
+    ],
+    "Local Cultural History": [
+        "Describe a local cultural festival.",
+        "What traditions are unique to your community?"
+    ],
     "Local History": [
         "What is an interesting fact about your town’s history?",
         "Describe a historical event that shaped your community."
+    ],
+    "Food & Agriculture": [
+        "Describe a traditional farming practice.",
+        "What local foods are special in your area?"
     ],
     "Newspapers Older Than 1980s": [
         "Have you seen old newspapers? What stood out?",
@@ -69,7 +93,7 @@ prompt_categories = {
     ]
 }
 
-# Initialize SQLite DB
+# ======== SQLite DB ========
 def init_db():
     conn = sqlite3.connect("responses.db")
     cursor = conn.cursor()
@@ -87,7 +111,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-# Insert submission into DB
 def insert_response(data):
     conn = sqlite3.connect("responses.db")
     cursor = conn.cursor()
@@ -111,7 +134,7 @@ def insert_response(data):
     conn.commit()
     conn.close()
 
-# ---------- Main App ----------
+# ======== Main App ========
 def run_prompt_collector():
     st.title("🎙️ Choose a category to contribute content")
 
@@ -183,10 +206,9 @@ def run_prompt_collector():
                 submission["text_response"] = text_response
 
             insert_response(submission)
-
             st.success("✅ Submitted successfully!")
 
-# Run app
+# ======== Run App ========
 if __name__ == "__main__":
     init_db()
     run_prompt_collector()

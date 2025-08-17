@@ -2,54 +2,99 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import os
 import io
+import uuid
+import sqlite3
 import requests
+from io import BytesIO
+from datetime import datetime
 from meme_gallery import save_uploaded_meme
 
-# ===== API CONFIG =====
-API_BASE_URL = "https://api.corpus.swecha.org/api/v1"  # Correct base URL
-BEARER_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTQ5MjA0ODUsInN1YiI6IjZlYWI4NGI2LTY5OWMtNDY1NC05NDVmLTgyNGViNzc4YmZmMiJ9.ijdfyhPmhqrZR1tCtqcnB1Df1G4RzhzkTSxKqTMdavE"  # Replace with your real token
-USER_ID = "3fa85f64-5717-4562-b3fc-2c963f66afa6"       # Replace with real UUID
-CATEGORY_ID = "3fa85f64-5717-4562-b3fc-2c963f66afa6"   # Replace with real UUID
+# ===== LOCAL DB =====
+DB_PATH = "responses.db"
 
-headers = {
-    "Authorization": f"Bearer {BEARER_TOKEN}",
-    "Content-Type": "application/json"
-}
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS responses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            location TEXT,
+            category TEXT,
+            prompt TEXT,
+            mode TEXT,
+            text_response TEXT,
+            timestamp TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-def create_record(
-    title,
-    media_type,
-    user_id,
-    category_id,
-    file_url=None,
-    file_name=None,
-    file_size=None,
-    description=None,
-    status="pending",
-    location=None
-):
-    payload = {
-        "title": title,
-        "description": description,
-        "media_type": media_type,
-        "file_url": file_url,
-        "file_name": file_name,
-        "file_size": file_size,
-        "status": status,
-        "location": location or {"latitude": 17.385, "longitude": 78.4867},
-        "reviewed": False,
-        "reviewed_by": None,
-        "reviewed_at": None,
-        "user_id": user_id,
-        "category_id": category_id
-    }
-    # Add trailing slash to avoid 404
-    response = requests.post(f"{API_BASE_URL}/records/", headers=headers, json=payload)
-    if response.status_code in (200, 201):
-        return response.json()
+def insert_response(data):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO responses (
+            location, category, prompt, mode, text_response, timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?)
+    """, (data["location"], data["category"], data["prompt"], data["mode"], data["text_response"], data["timestamp"]))
+    conn.commit()
+    conn.close()
+
+# ===== PUSH TO SWECHEA =====
+API_BASE = "https://api.corpus.swecha.org/api/v1"
+
+def upload(url, payload):
+    
+    token = st.session_state.get("auth_token")
+    if not token:
+        st.warning("Not logged in, skipping push to Swecha.")
+        return
+
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/x-www-form-urlencoded", "accept": "application/json"}
+
+    # Debug prints
+    st.write("DEBUG: POST URL:", url)
+    st.write("DEBUG: headers:", headers)
+    st.write("DEBUG: payload:", payload)
+
+    resp = requests.post(
+        f"{API_BASE}/{url}",
+        headers=headers,
+        data=payload
+    )
+
+    if resp.status_code in (200, 201):
+        return resp
     else:
-        st.error(f"Error {response.status_code}: {response.text}")
-        return None
+        st.error(f"❌ Failed to upload: {resp.status_code} {resp.text}")
+
+
+def push_to_swecha(payload):
+    
+    token = st.session_state.get("auth_token")
+    if not token:
+        st.warning("Not logged in, skipping push to Swecha.")
+        return
+
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/x-www-form-urlencoded", "accept": "application/json"}
+
+    # Debug prints
+    st.write("DEBUG: POST URL:", f"{API_BASE}/records/upload")
+    st.write("DEBUG: headers:", headers)
+    st.write("DEBUG: payload:", payload)
+
+    resp = requests.post(
+        f"{API_BASE}/records/upload",
+        headers=headers,
+        data=payload
+    )
+
+    st.write(resp)
+
+    if resp.status_code in (200, 201):
+        st.success(f"✅ Uploaded to Swecha Record")
+    else:
+        st.error(f"❌ Failed to upload: {resp.status_code} {resp.text}")
 
 # ===== MEME GENERATOR =====
 TELUGU_FONT_PATH = os.path.join("fonts", "NotoSansTelugu-Regular.ttf")
@@ -70,59 +115,63 @@ def draw_text_with_stroke(draw, text, font, image_width, y):
     draw.text((x, y), text, font=font, fill="white", stroke_width=3, stroke_fill="black")
 
 def run():
+    init_db()
     st.title("🎨 Meme Generator (Telugu Supported)")
+    options = [(item["id"], item["name"]) for item in st.session_state.categories]
+    selected_category = st.selectbox("Select Category for your Meme", options=options, format_func=lambda x: x[1])
+    
+    title = st.text_input("Top Text (Telugu supported)")
+    description = st.text_input("Bottom Text (Telugu supported)")
+    file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
 
-    top_text = st.text_input("Top Text (Telugu supported)")
-    bottom_text = st.text_input("Bottom Text (Telugu supported)")
-    uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
 
     if st.button("Generate Meme"):
-        if not uploaded_file:
+        if not file:
             st.warning("Please upload an image file to generate meme.")
             return
 
-        image = Image.open(uploaded_file).convert("RGB")
+        image = Image.open(file).convert("RGB")
         meme = image.copy()
         draw = ImageDraw.Draw(meme)
 
         font_size = max(40, meme.height // 15)
         font = load_telugu_font(font_size)
 
-        if top_text:
-            draw_text_with_stroke(draw, top_text, font, meme.width, 10)
-        if bottom_text:
-            draw_text_with_stroke(draw, bottom_text, font, meme.width, meme.height - font_size - 10)
+        if title:
+            draw_text_with_stroke(draw, title, font, meme.width, 10)
+
+        if description:
+            draw_text_with_stroke(draw, description, font, meme.width, meme.height - font_size - 10)
+
+        buffer = BytesIO()
+        meme.save(buffer, format="PNG")   # or "PNG"
+        buffer.seek(0)
 
         st.image(meme, caption="Generated Meme", use_container_width=True)
 
-        buffer = io.BytesIO()
-        meme.save(buffer, format="PNG")
-        buffer.seek(0)
+        upload_uuid = str(uuid.uuid4())
 
-        class UploadedMeme:
-            def __init__(self, name, buffer):
-                self.name = name
-                self._buffer = buffer
-            def getbuffer(self):
-                return self._buffer.getbuffer()
+        # upload image in chunk 
+        chunk = upload(url="records/upload/chunk", payload = {
+            "chunk": buffer,
+            "filename": "hello123.png",
+            "chunk_index": 0,
+            "total_chunks": 1,
+            "upload_uuid": upload_uuid
+        })
 
-        fake_file = UploadedMeme(f"meme_{uploaded_file.name}", buffer)
+        st.write(chunk)
 
-        save_uploaded_meme(fake_file)
-        st.success("✅ Meme saved to gallery!")
-
-        # You must replace this with the real hosted URL after upload to your storage
-        uploaded_url = f"https://your-storage.com/{fake_file.name}"
-
-        api_response = create_record(
-            title=f"Meme: {top_text} {bottom_text}",
-            media_type="image",
-            user_id=USER_ID,
-            category_id=CATEGORY_ID,
-            file_url=uploaded_url,
-            file_name=fake_file.name,
-            file_size=len(fake_file.getbuffer()),
-            description="Generated Telugu meme"
-        )
-        if api_response:
-            st.success("✅ Meme uploaded to API successfully!")
+        # Push automatically to Swecha using category-specific endpoint
+        # push_to_swecha({
+        #         "title": title,
+        #         "description": description,
+        #         "category_id": selected_category[0],
+        #         "user_id": st.session_state.user["id"],
+        #         "upload_uuid": upload_uuid,
+        #         "language": "telugu",
+        #         "media_type": "image",
+        #         "filename": "angelvyas.png",
+        #         "total_chunks": 45334,
+        #         "release_rights": "creator"
+        #     })
