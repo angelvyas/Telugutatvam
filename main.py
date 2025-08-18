@@ -14,6 +14,10 @@ from meme_gallery import run as run_meme_gallery
 API_BASE = "https://api.corpus.swecha.org/api/v1"
 REQ_TIMEOUT = 15  # seconds
 
+st.session_state.logged_in = True
+st.session_state.auth_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTU2MjQwMTAsInN1YiI6IjZlYWI4NGI2LTY5OWMtNDY1NC05NDVmLTgyNGViNzc4YmZmMiJ9.JbXan52-ft122XmWLOx1MmnnTfwka_UPahSUYtP_N0Q"
+st.success("Login successful! 🎉")
+
 # ---------------- Session defaults ----------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -190,9 +194,13 @@ def run_dashboard():
         st.rerun()
 
 # ---------------- MAIN APP ----------------
+
+
+
 if st.session_state.logged_in:
     st.session_state.categories = get_categories()
     st.session_state.user = get_current_user()
-    run_dashboard()
+    # run_dashboard()
+    run_meme_generator()
 else:
     run_auth_box()

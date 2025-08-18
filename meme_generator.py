@@ -43,24 +43,45 @@ def insert_response(data):
 # ===== PUSH TO SWECHEA =====
 API_BASE = "https://api.corpus.swecha.org/api/v1"
 
-def upload(url, payload):
+def upload(url, payload, files):
     
     token = st.session_state.get("auth_token")
     if not token:
         st.warning("Not logged in, skipping push to Swecha.")
         return
 
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/x-www-form-urlencoded", "accept": "application/json"}
+    headers = {"Authorization": f"Bearer {token}", "accept": "application/json"}
 
     # Debug prints
-    st.write("DEBUG: POST URL:", url)
-    st.write("DEBUG: headers:", headers)
-    st.write("DEBUG: payload:", payload)
+    # st.write("DEBUG: POST URL:", url)
+    # st.write("DEBUG: headers:", headers)
+    # st.write("DEBUG: payload:", payload)
 
     resp = requests.post(
         f"{API_BASE}/{url}",
         headers=headers,
-        data=payload
+        data=payload,
+        files=files
+    )
+
+    if resp.status_code in (200, 201):
+        return resp
+    else:
+        st.error(f"❌ Failed to upload: {resp.status_code} {resp.text}")
+
+def upload_file(url, files):
+    
+    token = st.session_state.get("auth_token")
+    if not token:
+        st.warning("Not logged in, skipping push to Swecha.")
+        return
+
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "multipart/form-data", "accept": "application/json"}
+
+    resp = requests.post(
+        f"{API_BASE}/{url}",
+        headers=headers,
+        chunk=files
     )
 
     if resp.status_code in (200, 201):
@@ -147,21 +168,23 @@ def run():
         meme.save(buffer, format="PNG")   # or "PNG"
         buffer.seek(0)
 
+       
+
         st.image(meme, caption="Generated Meme", use_container_width=True)
 
         upload_uuid = str(uuid.uuid4())
 
+        files =  { "chunk": (file.name, file.getvalue(), file.type)}
+
         # upload image in chunk 
         chunk = upload(url="records/upload/chunk", payload = {
-            "chunk": buffer,
-            "filename": "hello123.png",
+            "filename": "uploaded.png",
             "chunk_index": 0,
             "total_chunks": 1,
             "upload_uuid": upload_uuid
-        })
+        }, files = files )
 
-        st.write(chunk)
-
+    
         # Push automatically to Swecha using category-specific endpoint
         # push_to_swecha({
         #         "title": title,
