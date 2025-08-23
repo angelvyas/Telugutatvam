@@ -6,8 +6,8 @@ import random
 import sqlite3
 
 # ======== Prompt Categories & Questions ========
-prompt_categories = {
-    "People": [
+prompt_categories_questions = {
+    "Fables": [
         "Describe an inspiring person you know.",
         "Who is your role model and why?"
     ],
@@ -26,10 +26,6 @@ prompt_categories = {
     "Food": [
         "What is your favorite dish? - మీకు ఇష్టమైన వంటకం ఏమిటి?",
         "Do you prefer spicy or sweet? - మీరు కారంగా ఇష్టపడతారా లేదా తీపిగా?"
-    ],
-    "People": [
-        "Describe a person who made a difference in your life.",
-        "Who inspires you and why?"
     ],
     "Literature": [
         "Who is your favorite author or poet?",
@@ -137,7 +133,8 @@ def insert_response(data):
 # ======== Main App ========
 def run_prompt_collector():
     st.title("🎙️ Choose a category to contribute content")
-
+    
+    
     # Location detection
     try:
         location_info = geocoder.ip('me')
@@ -148,23 +145,22 @@ def run_prompt_collector():
     st.markdown(f"📍 **Your Location:** `{location}`")
 
     # Prompt selection
-    st.subheader("📂 Select a Category")
-    selected_category = st.selectbox("Choose a category", list(prompt_categories.keys()))
-    if 'prompt_index' not in st.session_state:
-        st.session_state.prompt_index = 0
+    prompt_categories = [(item["id"], item["name"]) for item in st.session_state.categories]
+    selected_category = st.selectbox("📂 Select a Category", options=prompt_categories, format_func=lambda x: x[1])
 
-    prompt_list = prompt_categories[selected_category]
-    prompt = prompt_list[st.session_state.prompt_index]
+    prompt_categories_questions_key = str(selected_category[1]).title()
+    prompt_cat_ques_list = prompt_categories_questions[prompt_categories_questions_key]
+    prompt_cat_ques = prompt_cat_ques_list[random.randint(0, len(prompt_cat_ques_list) -1 )]
+    
     st.subheader("📝 Prompt")
-    st.markdown(f"**{prompt}**")
+    st.markdown(f"**{prompt_cat_ques}**")
 
     if st.button("🔄 Refresh Question"):
-        st.session_state.prompt_index = random.randint(0, len(prompt_list) - 1)
         st.rerun()
 
     # Submission Mode
     st.subheader("🔴 Recording/Typing")
-    mode = st.radio("Submission Mode", ["Audio", "Video", "Text"])
+    mode = st.radio("Submission Mode", ["Audio", "Video", "Text","Image"])
 
     text_response = ""
     uploaded_file = None

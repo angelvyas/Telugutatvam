@@ -15,7 +15,7 @@ API_BASE = "https://api.corpus.swecha.org/api/v1"
 REQ_TIMEOUT = 15  # seconds
 
 st.session_state.logged_in = True
-st.session_state.auth_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTU2MjQwMTAsInN1YiI6IjZlYWI4NGI2LTY5OWMtNDY1NC05NDVmLTgyNGViNzc4YmZmMiJ9.JbXan52-ft122XmWLOx1MmnnTfwka_UPahSUYtP_N0Q"
+st.session_state.auth_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTYwMTgwODQsInN1YiI6IjZlYWI4NGI2LTY5OWMtNDY1NC05NDVmLTgyNGViNzc4YmZmMiJ9._vTfO0eJGCQ8qKvEMO11VnUgcasPRxFfmVh69hvZbUM"
 st.success("Login successful! 🎉")
 
 # ---------------- Session defaults ----------------
@@ -200,7 +200,7 @@ def run_dashboard():
 if st.session_state.logged_in:
     st.session_state.categories = get_categories()
     st.session_state.user = get_current_user()
-    # run_dashboard()
-    run_meme_generator()
+    run_dashboard()
+    #run_prompt_collector()
 else:
     run_auth_box()
